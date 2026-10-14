@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>どろんこ 活動カレンダー（プレビュー）</title>
+  <!-- Tailwind CSS & React (ブラウザ実行用) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const gradeColors = {
+      "1年": "border-lime-500 text-lime-600 bg-lime-50 ring-lime-500/10",
+      "2年": "border-amber-400 text-amber-600 bg-amber-50 ring-amber-400/10",
+      "3年": "border-fuchsia-400 text-fuchsia-600 bg-fuchsia-50 ring-fuchsia-500/10",
+      "4年": "border-pink-400 text-pink-600 bg-pink-50 ring-pink-500/10",
+    };
+
+    const locationsList = [
+      "ありんこ", "一ノ宮", "押立", "片町", "上田", 
+      "是政", "桜まつり", "新町", "神明", "白糸", 
+      "多摩境", "南平", "紅葉", "由木", "四谷"
+    ];
+
+    const initialEvents = {
+      "2026-11-15": { 
+        id: 1, title: "神明あそび相手ボランティア", location: "神明", color: "bg-pink-100 text-pink-700 border-pink-200", limit: 12, 
+        startTime: "13:00", endTime: "16:00", items: "上履き、動きやすい服装", description: "子どもたちと一緒に外遊びやレクを行います！", 
+        attendees: [{ name: "どろね", grade: "3年" }], lineGroupUrl: "https://line.me/example" 
+      },
+      "2026-11-18": { 
+        id: 2, title: "白糸お芋掘り補助", location: "白糸", color: "bg-emerald-100 text-emerald-700 border-emerald-200", limit: 6, 
+        startTime: "10:00", endTime: "12:00", items: "軍手、汚れてもいい服", description: "園児たちのお芋掘りのお手伝いです。", 
+        attendees: [], lineGroupUrl: "" 
+      },
+      "2026-11-21": { 
+        id: 3, title: "南平シニアお話し相手", location: "南平", color: "bg-amber-100 text-amber-700 border-amber-200", limit: 8, 
+        startTime: "14:00", endTime: "17:00", items: "特になし", description: "お話し相手や簡単なレクリエーションを行います。", 
+        attendees: [{ name: "みく", grade: "2年" }], lineGroupUrl: "" 
+      },
+    };
+
+    function App() {
+      const [events, setEvents] = useState(initialEvents);
+      const [selectedDate, setSelectedDate] = useState("2026-11-15");
+      const [currentView, setCurrentView] = useState("calendar");
+      const detailSectionRef = useRef(null);
+
+      const [myName, setMyName] = useState("");
+      const [myGrade, setMyGrade] = useState("1年");
+      const [isNameSaved, setIsNameSaved] = useState(false);
+      const [myJoinedList, setMyJoinedList] = useState([]);
+      const [isAdmin, setIsAdmin] = useState(false);
+      const [inputPassword, setInputPassword] = useState("");
+
+      const handleDateClick = (dateStr) => {
+        setSelectedDate(dateStr);
+        setTimeout(() => {
+          if (detailSectionRef.current && window.innerWidth < 1024) {
+            detailSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
+      };
+
+      const daysInMonth = Array.from({ length: 30 }, (_, i) => i + 1);
+      const activeEvent = selectedDate ? events[selectedDate] : null;
+
+      return (
+        <div className="min-h-screen bg-slate-50 text-slate-800 p-3 sm:p-4 font-sans">
+          <header className="max-w-6xl mx-auto mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm gap-3">
+              <h1 className="text-xl sm:text-2xl font-black text-amber-800 tracking-tight flex items-center gap-1.5">
+                🌱 どろんこ 活動カレンダー
+              </h1>
+              <div className="flex w-full sm:w-auto bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  onClick={() => setCurrentView("calendar")}
+                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                    currentView === "calendar" ? "bg-white text-amber-800 shadow-sm" : "text-slate-500"
+                  }`}
+                >
+                  📅 カレンダー
+                </button>
+                <button
+                  onClick={() => setCurrentView("mypage")}
+                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                    currentView === "mypage" ? "bg-white text-amber-800 shadow-sm" : "text-slate-500"
+                  }`}
+                >
+                  👤 マイページ ＆ 館付
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="max-w-6xl mx-auto">
+            {currentView === "calendar" ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+                  <div className="bg-white rounded-2xl p-3.5 sm:p-6 border border-slate-200 shadow-sm">
+                    <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-amber-700 text-center font-mono">2026年 11月</h2>
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+                      <div className="text-rose-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div className="text-sky-500">土</div>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                      {daysInMonth.map((day) => {
+                        const dateStr = `2026-11-${String(day).padStart(2, "0")}`;
+                        const hasEvent = events[dateStr];
+                        const isSelected = selectedDate === dateStr;
+
+                        return (
+                          <div
+                            key={day}
+                            onClick={() => handleDateClick(dateStr)}
+                            className={`h-16 sm:h-20 border rounded-xl p-1 cursor-pointer transition-all flex flex-col justify-between active:scale-95 ${
+                              isSelected 
+                                ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-500/20" 
+                                : hasEvent 
+                                  ? "border-slate-300 bg-slate-50 hover:border-amber-400" 
+                                  : "border-slate-100 bg-white"
+                            }`}
+                          >
+                            <span className="text-[10px] sm:text-xs font-bold font-mono text-slate-400">{day}</span>
+                            {hasEvent && (
+                              <div className="w-full">
+                                <div className={`text-[8px] sm:text-[9px] px-0.5 sm:px-1 py-0.5 rounded truncate font-bold border ${hasEvent.color}`}>
+                                  {hasEvent.location}
+                                </div>
+                                <div className="text-[8px] sm:text-[9px] text-right font-bold text-amber-700 font-mono mt-0.5">
+                                  {hasEvent.attendees.length}/{hasEvent.limit}人
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div ref={detailSectionRef} className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm h-fit scroll-mt-4">
+                  {selectedDate && activeEvent ? (
+                    <div>
+                      <div className="border-b border-slate-200 pb-3 mb-3.5">
+                        <span className="text-xs text-slate-400 font-mono">{selectedDate}</span>
+                        <h2 className="text-base sm:text-lg font-black text-slate-800 mt-0.5">{activeEvent.title}</h2>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="text-xs text-amber-700 font-bold">📍 拠点: {activeEvent.location}</span>
+                          <span className="text-xs text-slate-500 font-mono">⏰ {activeEvent.startTime} 〜 {activeEvent.endTime}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2 mb-4 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div><span className="font-bold text-slate-500">🎒 持ち物:</span> {activeEvent.items}</div>
+                        <div><span className="font-bold text-slate-500">📝 内容:</span> {activeEvent.description}</div>
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex justify-between items-center text-xs text-slate-500 font-medium mb-1">
+                          <span>現在の集まり具合</span>
+                          <span className="font-bold text-amber-700">{activeEvent.attendees.length} / {activeEvent.limit} 人</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                          <div className="bg-gradient-to-r from-amber-500 to-emerald-500 h-2.5 rounded-full" style={{ width: `${(activeEvent.attendees.length / activeEvent.limit) * 100}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400 text-xs font-medium">カレンダーの日付をタップすると詳細が表示されます。</div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <h3 className="text-md font-bold text-slate-800 mb-3">👤 マイページ ＆ 館付設定</h3>
+                <p className="text-xs text-slate-500">iPadからのデザイン確認用プレビュー画面です。</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
