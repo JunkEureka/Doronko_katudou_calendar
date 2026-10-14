@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>どろんこ 活動カレンダー（プレビュー）</title>
-  <!-- Tailwind CSS & React (ブラウザ実行用) -->
+  <title>どろんこ 活動カレンダー（完全版プレビュー）</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -53,12 +52,25 @@
       const [currentView, setCurrentView] = useState("calendar");
       const detailSectionRef = useRef(null);
 
-      const [myName, setMyName] = useState("");
-      const [myGrade, setMyGrade] = useState("1年");
-      const [isNameSaved, setIsNameSaved] = useState(false);
-      const [myJoinedList, setMyJoinedList] = useState([]);
+      // プロフィール・参加用State (localStorage風)
+      const [myName, setMyName] = useState("どろね");
+      const [myGrade, setMyGrade] = useState("3年");
+      const [isNameSaved, setIsNameSaved] = useState(true);
+
+      // 館付認証State
       const [isAdmin, setIsAdmin] = useState(false);
       const [inputPassword, setInputPassword] = useState("");
+      const [adminError, setAdminError] = useState(false);
+
+      // 新規活動登録用State (館付用)
+      const [newTitle, setNewTitle] = useState("");
+      const [newLocation, setNewLocation] = useState("神明");
+      const [newLimit, setNewLimit] = useState(10);
+      const [newStartTime, setNewStartTime] = useState("13:00");
+      const [newEndTime, setNewEndTime] = useState("16:00");
+      const [newItems, setNewItems] = useState("上履き");
+      const [newDesc, setNewDesc] = useState("");
+      const [newDate, setNewDate] = useState("2026-11-20");
 
       const handleDateClick = (dateStr) => {
         setSelectedDate(dateStr);
@@ -69,20 +81,82 @@
         }, 100);
       };
 
+      const handleJoinToggle = (dateStr) => {
+        if (!isNameSaved) {
+          alert("先にマイページでプロフィール（名前と学年）を保存してください！");
+          setCurrentView("mypage");
+          return;
+        }
+        setEvents(prev => {
+          const ev = prev[dateStr];
+          if (!ev) return prev;
+          const exists = ev.attendees.some(a => a.name === myName);
+          let newAttendees;
+          if (exists) {
+            newAttendees = ev.attendees.filter(a => a.name !== myName);
+          } else {
+            if (ev.attendees.length >= ev.limit) {
+              alert("定員に達しています！");
+              return prev;
+            }
+            newAttendees = [...ev.attendees, { name: myName, grade: myGrade }];
+          }
+          return {
+            ...prev,
+            [dateStr]: { ...ev, attendees: newAttendees }
+          };
+        });
+      };
+
+      const handleAdminLogin = (e) => {
+        e.preventDefault();
+        if (inputPassword === "doronko15") {
+          setIsAdmin(true);
+          setAdminError(false);
+        } else {
+          setAdminError(true);
+        }
+      };
+
+      const handleCreateEvent = (e) => {
+        e.preventDefault();
+        if (!newTitle) return;
+        setEvents(prev => ({
+          ...prev,
+          [newDate]: {
+            id: Date.now(),
+            title: newTitle,
+            location: newLocation,
+            color: "bg-indigo-100 text-indigo-700 border-indigo-200",
+            limit: Number(newLimit),
+            startTime: newStartTime,
+            endTime: newEndTime,
+            items: newItems,
+            description: newDesc,
+            attendees: [],
+            lineGroupUrl: ""
+          }
+        }));
+        alert("新しい活動を登録しました！カレンダーに戻って確認してください。");
+        setSelectedDate(newDate);
+        setCurrentView("calendar");
+      };
+
       const daysInMonth = Array.from({ length: 30 }, (_, i) => i + 1);
       const activeEvent = selectedDate ? events[selectedDate] : null;
 
       return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 p-3 sm:p-4 font-sans">
+        <div className="min-h-screen bg-slate-50 text-slate-800 p-3 sm:p-5 font-sans">
+          {/* ヘッダー */}
           <header className="max-w-6xl mx-auto mb-4 sm:mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm gap-3">
-              <h1 className="text-xl sm:text-2xl font-black text-amber-800 tracking-tight flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200 shadow-sm gap-3">
+              <h1 className="text-xl sm:text-2xl font-black text-amber-800 tracking-tight flex items-center gap-2">
                 🌱 どろんこ 活動カレンダー
               </h1>
               <div className="flex w-full sm:w-auto bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
                   onClick={() => setCurrentView("calendar")}
-                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                     currentView === "calendar" ? "bg-white text-amber-800 shadow-sm" : "text-slate-500"
                   }`}
                 >
@@ -90,7 +164,7 @@
                 </button>
                 <button
                   onClick={() => setCurrentView("mypage")}
-                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                     currentView === "mypage" ? "bg-white text-amber-800 shadow-sm" : "text-slate-500"
                   }`}
                 >
@@ -100,12 +174,18 @@
             </div>
           </header>
 
-          <div className="max-w-6xl mx-auto">
+          <main className="max-w-6xl mx-auto">
             {currentView === "calendar" ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-                  <div className="bg-white rounded-2xl p-3.5 sm:p-6 border border-slate-200 shadow-sm">
-                    <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-amber-700 text-center font-mono">2026年 11月</h2>
+                {/* カレンダー本体 */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg sm:text-xl font-bold text-amber-700 font-mono">2026年 11月</h2>
+                      <span className="text-xs bg-amber-50 text-amber-700 px-3 py-1 rounded-full font-bold border border-amber-200">
+                        ログイン中: {myName} ({myGrade})
+                      </span>
+                    </div>
                     <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold text-slate-400 mb-2">
                       <div className="text-rose-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div className="text-sky-500">土</div>
                     </div>
@@ -119,9 +199,9 @@
                           <div
                             key={day}
                             onClick={() => handleDateClick(dateStr)}
-                            className={`h-16 sm:h-20 border rounded-xl p-1 cursor-pointer transition-all flex flex-col justify-between active:scale-95 ${
+                            className={`h-16 sm:h-20 border rounded-xl p-1.5 cursor-pointer transition-all flex flex-col justify-between active:scale-95 ${
                               isSelected 
-                                ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-500/20" 
+                                ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20" 
                                 : hasEvent 
                                   ? "border-slate-300 bg-slate-50 hover:border-amber-400" 
                                   : "border-slate-100 bg-white"
@@ -130,7 +210,7 @@
                             <span className="text-[10px] sm:text-xs font-bold font-mono text-slate-400">{day}</span>
                             {hasEvent && (
                               <div className="w-full">
-                                <div className={`text-[8px] sm:text-[9px] px-0.5 sm:px-1 py-0.5 rounded truncate font-bold border ${hasEvent.color}`}>
+                                <div className={`text-[8px] sm:text-[9px] px-1 py-0.5 rounded truncate font-bold border ${hasEvent.color}`}>
                                   {hasEvent.location}
                                 </div>
                                 <div className="text-[8px] sm:text-[9px] text-right font-bold text-amber-700 font-mono mt-0.5">
@@ -145,43 +225,161 @@
                   </div>
                 </div>
 
-                <div ref={detailSectionRef} className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm h-fit scroll-mt-4">
+                {/* 詳細・参加パネル */}
+                <div ref={detailSectionRef} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm h-fit scroll-mt-4">
                   {selectedDate && activeEvent ? (
                     <div>
-                      <div className="border-b border-slate-200 pb-3 mb-3.5">
+                      <div className="border-b border-slate-200 pb-3 mb-4">
                         <span className="text-xs text-slate-400 font-mono">{selectedDate}</span>
-                        <h2 className="text-base sm:text-lg font-black text-slate-800 mt-0.5">{activeEvent.title}</h2>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          <span className="text-xs text-amber-700 font-bold">📍 拠点: {activeEvent.location}</span>
-                          <span className="text-xs text-slate-500 font-mono">⏰ {activeEvent.startTime} 〜 {activeEvent.endTime}</span>
+                        <h3 className="text-base sm:text-lg font-black text-slate-800 mt-0.5">{activeEvent.title}</h3>
+                        <div className="flex flex-wrap gap-2 mt-1.5">
+                          <span className="text-xs text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">📍 拠点: {activeEvent.location}</span>
+                          <span className="text-xs text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded">⏰ {activeEvent.startTime}〜{activeEvent.endTime}</span>
                         </div>
                       </div>
+
                       <div className="space-y-2 mb-4 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
                         <div><span className="font-bold text-slate-500">🎒 持ち物:</span> {activeEvent.items}</div>
                         <div><span className="font-bold text-slate-500">📝 内容:</span> {activeEvent.description}</div>
                       </div>
+
                       <div className="mb-4">
                         <div className="flex justify-between items-center text-xs text-slate-500 font-medium mb-1">
-                          <span>現在の集まり具合</span>
-                          <span className="font-bold text-amber-700">{activeEvent.attendees.length} / {activeEvent.limit} 人</span>
+                          <span>参加メンバー ({activeEvent.attendees.length}/{activeEvent.limit}人)</span>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
-                          <div className="bg-gradient-to-r from-amber-500 to-emerald-500 h-2.5 rounded-full" style={{ width: `${(activeEvent.attendees.length / activeEvent.limit) * 100}%` }}></div>
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200 mb-2">
+                          <div className="bg-gradient-to-r from-amber-500 to-emerald-500 h-2.5 rounded-full transition-all" style={{ width: `${(activeEvent.attendees.length / activeEvent.limit) * 100}%` }}></div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
+                          {activeEvent.attendees.length === 0 ? (
+                            <span className="text-xs text-slate-400 p-1">まだ参加者はいません</span>
+                          ) : (
+                            activeEvent.attendees.map((att, idx) => (
+                              <span key={idx} className={`text-xs px-2 py-0.5 rounded-lg border font-bold ${gradeColors[att.grade] || "bg-slate-100"}`}>
+                                {att.name} ({att.grade})
+                              </span>
+                            ))
+                          )}
                         </div>
                       </div>
+
+                      <button
+                        onClick={() => handleJoinToggle(selectedDate)}
+                        className={`w-full py-3 rounded-xl font-bold text-sm shadow-sm transition-all ${
+                          activeEvent.attendees.some(a => a.name === myName)
+                            ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
+                            : "bg-amber-600 text-white hover:bg-amber-700"
+                        }`}
+                      >
+                        {activeEvent.attendees.some(a => a.name === myName) ? "参加をキャンセルする" : "この活動に参加する！"}
+                      </button>
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-400 text-xs font-medium">カレンダーの日付をタップすると詳細が表示されます。</div>
+                    <div className="text-center py-10 text-slate-400 text-xs font-medium">
+                      カレンダーの日付をタップすると、詳細や参加ボタンが表示されます。
+                    </div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <h3 className="text-md font-bold text-slate-800 mb-3">👤 マイページ ＆ 館付設定</h3>
-                <p className="text-xs text-slate-500">iPadからのデザイン確認用プレビュー画面です。</p>
+              /* マイページ ＆ 館付 画面 */
+              <div className="max-w-2xl mx-auto space-y-6">
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">👤 プロフィール設定（なりすまし防止）</h3>
+                  <p className="text-xs text-slate-500">ここで名前と学年を設定すると、カレンダーの参加ボタンでこの名前が使われます。</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">お名前（ニックネーム可）</label>
+                      <input
+                        type="text"
+                        value={myName}
+                        onChange={(e) => setMyName(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-amber-500"
+                        placeholder="例: どろね"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">学年カラー</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {["1年", "2年", "3年", "4年"].map((grade) => (
+                          <button
+                            key={grade}
+                            type="button"
+                            onClick={() => setMyGrade(grade)}
+                            className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                              myGrade === grade ? "border-amber-600 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20" : "border-slate-200 text-slate-600 bg-white"
+                            }`}
+                          >
+                            {grade} ({grade === "1年" ? "黄緑" : grade === "2年" ? "黄色" : grade === "3年" ? "紫" : "ピンク"})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setIsNameSaved(true); alert("プロフィールを保存しました！"); }}
+                      className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-900 transition-all"
+                    >
+                      プロフィールを固定する
+                    </button>
+                  </div>
+                </div>
+
+                {/* 館付（リーダー）認証 & 登録フォーム */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">🔑 館付（リーダー）専用メニュー</h3>
+                  
+                  {!isAdmin ? (
+                    <form onSubmit={handleAdminLogin} className="space-y-3">
+                      <p className="text-xs text-slate-500">活動の新規登録を行うには、館付パスワードを入力してください。（テスト用: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-amber-700 font-mono">doronko15</code>）</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={inputPassword}
+                          onChange={(e) => setInputPassword(e.target.value)}
+                          placeholder="パスワードを入力"
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-amber-500"
+                        />
+                        <button type="submit" className="bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-700">
+                          認証
+                        </button>
+                      </div>
+                      {adminError && <p className="text-xs text-rose-500 font-bold">パスワードが違います</p>}
+                    </form>
+                  ) : (
+                    <form onSubmit={handleCreateEvent} className="space-y-4 border-t border-slate-100 pt-4">
+                      <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border border-emerald-200 font-bold">
+                        ✅ 館付権限でログイン中：新しい活動を登録できます
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 mb-1">活動タイトル</label>
+                          <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="例: 神明あそび相手" required className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 mb-1">活動先拠点</label>
+                          <select value={newLocation} onChange={e => setNewLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+                            {locationsList.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 mb-1">日付</label>
+                          <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 mb-1">定員 (人)</label>
+                          <input type="number" value={newLimit} onChange={e => setNewLimit(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" />
+                        </div>
+                      </div>
+                      <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-emerald-700 transition-all">
+                        ✨ この内容で活動を登録する
+                      </button>
+                    </form>
+                  )}
+                </div>
               </div>
             )}
-          </div>
+          </main>
         </div>
       );
     }
